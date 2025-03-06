@@ -1,0 +1,40 @@
+<?php
+$translate = $this->plugin('translate');
+$searchType = $this->siteSetting('search_type', 'sitewide');
+$properties = isset($_GET['property']) ? $_GET['property'] : [];
+$properties = array_filter($properties, function ($value) {
+    return isset($value['text']) ? '' !== trim($value['text']) : true;
+});
+if (!$properties) {
+    $properties[] = [];
+}
+$searchAction = $this->url('site/resource', ['controller' => 'item', 'action' => 'browse'], true);
+$searchValue = $this->escapeHtml((isset($properties[0]['text'])) ? $properties[0]['text'] : "");
+$itemSetID = $this->escapeHtml($this->params()->fromQuery('item_set_id'));
+$searchSchoolName  = $this->escapeHtml((isset($properties[1]['text'])) ? $properties[1]['text'] : "");
+// $spatialOptions = $this->api()->search('items',$searchDetails)->getContent();
+$spatialOptions = $this->api()->search('item_sets', ['sort_by' => 'title'])->getContent();
+$propertyTitles = $this->api()->search('properties')->getContent();
+$propertySearchAdditionalField01 = (isset($this->searchField_01)) ? $this->searchField_01 : 'dcterms:title';
+if ($this->includeBlankInItemSetList){
+    $itemSetOptions = "<option value=''></option>";
+} else {
+    $itemSetOptions = '';
+}
+foreach ($spatialOptions as $item) {
+    $selected = ($item->id() == $itemSetID) ? " selected " : ""; 
+    $itemSetOptions .= '<option value="' . $item->id() . '"' . $selected . '">' .$item->displayTitle()  . '</option>';
+}
+?>
+<div class="search_form">
+    <form action="<?php echo $this->escapeHtml($searchAction); ?>" id="search-form">
+        <input type="hidden" name="item_set_id" id="itemsetid" value="<?php echo $this->selectedItemSet; ?>" />
+        <input type="hidden" name="property[0][joiner]" value="<?php echo $this->conditionalSelect; ?>" />
+        <input type="hidden" name="property[0][property]" value="<?php echo $propertySearchAdditionalField01; ?>" />
+        <input type="hidden" name="property[0][type]" value="<?php echo $this->searchTypeSelect; ?>" />
+        <input type="text" name="property[0][text]" value="<?php echo $searchValue; ?>"
+            placeholder="<?php echo $translate($this->placeHolder_01); ?>"
+            aria-label="<?php echo $translate($this->placeHolder_01); ?>">
+        <button type="submit"><?php echo $translate('Search'); ?></button> 
+    </form>
+</div>

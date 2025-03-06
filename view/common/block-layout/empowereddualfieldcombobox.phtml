@@ -1,0 +1,78 @@
+<?php
+$translate = $this->plugin('translate');
+$searchType = $this->siteSetting('search_type', 'sitewide');
+$properties = isset($_GET['property']) ? $_GET['property'] : [];
+$properties = array_filter($properties, function ($value) {
+    return isset($value['text']) ? '' !== trim($value['text']) : true;
+});
+if (!$properties) {
+    $properties[] = [];
+}
+$searchAction = $this->url('site/resource', ['controller' => 'item', 'action' => 'browse'], true);
+$searchValue = $this->escapeHtml((isset($properties[0]['text'])) ? $properties[0]['text'] : "");
+$itemSetID = $this->escapeHtml($this->params()->fromQuery('item_set_id'));
+
+$vocFromID = $this->api()->searchOne('properties', ['id' => $this->searchField_01])->getContent();
+$lastTerm = $vocFromID->term();
+$vocFromID2 = $this->api()->searchOne('properties', ['id' => $this->searchField_02])->getContent();
+$lastTerm2 = $vocFromID2->term();
+// the comment below is to remind anyone working with this code ... if the number of items is large enough, memory will be exhausted.
+// $searchTextOneOptions = $this->api()->search('items', ['property' => [ 0 => ['property' => $this->searchField_01, 'type' => 'ex']]])->getContent();
+$queryLimit = 25;
+$offset = 0;
+$fieldOneData = [];
+while (count($searchTextOneOptions = $this->api()->search('items', ['offset' => $offset, 'limit' => $queryLimit, 'property' => [ 0 => ['property' => $this->searchField_01, 'type' => 'ex']]])->getContent()) > 0) {
+    foreach($searchTextOneOptions as $sOpt1){
+        if(isset($sOpt1->values()[$lastTerm])) {
+            $fieldOneData[$sOpt1->values()[$lastTerm]['values'][0]->value()] =  $sOpt1;
+        }
+    }
+// increase offset for query
+    $offset += $queryLimit;
+}
+$offset = 0;
+$fieldTwoData = [];
+while (count($searchTextTwoOptions = $this->api()->search('items', ['offset' => $offset, 'limit' => $queryLimit, 'property' => [ 0 => ['property' => $this->searchField_02, 'type' => 'ex']]])->getContent()) > 0) {
+    foreach($searchTextTwoOptions as $sOpt2){
+        if(isset($sOpt2->values()[$lastTerm2])) {
+            $fieldTwoData[$sOpt2->values()[$lastTerm2]['values'][0]->value()] =  $sOpt2;
+        }
+    }
+// increase offset for query
+    $offset += $queryLimit;
+}
+;
+$propertySearchAdditionalField01 = (isset($this->searchField_01)) ? $this->searchField_01 : 'dcterms:title';
+$propertySearchAdditionalField02 = (isset($this->searchField_02)) ? $this->searchField_02 : 'dcterms:title';
+// TODO: make a module or config setting
+ksort($fieldOneData);
+ksort($fieldTwoData);
+$fieldOneOptions = '<option value="" disabled:disabled ></option>';
+foreach($fieldOneData as $sOpt1){
+    $fieldOneOptions .= sprintf("<option value='%s'>%s</option>", $sOpt1->values()[$lastTerm]['values'][0]->value(), $sOpt1->values()[$lastTerm]['values'][0]->value());
+}
+$fieldTwoOptions = '<option value="" disabled:disabled ></option>';
+foreach($fieldTwoData as $sOpt2){
+    $fieldTwoOptions .= sprintf("<option value='%s'>%s</option>", $sOpt2->values()[$lastTerm2]['values'][0]->value(), $sOpt2->values()[$lastTerm2]['values'][0]->value());
+}
+
+?>
+
+<div class="search_form">
+    <form action="<?php echo $this->escapeHtml($searchAction); ?>" id="search-form">
+        <label><?php echo $translate($this->placeHolder_01); ?>
+        <select name="property[0][text]" id="selectField01">
+           <?php echo $fieldOneOptions; ?>
+        </select></label>
+        <input type="hidden" name="property[0][property]" value="<?php echo $propertySearchAdditionalField01; ?>" />
+        <input type="hidden" name="property[0][type]" value="<?php echo $this->searchTypeSelect01; ?>" />
+        <input type="hidden" name="property[1][joiner]" value="<?php echo $this->conditionalSelect; ?>" />
+        <input type="hidden" name="property[1][property]" value="<?php echo $propertySearchAdditionalField02; ?>" />
+        <input type="hidden" name="property[1][type]" value="<?php echo $this->searchTypeSelect02; ?>" />
+        <label><?php echo $translate($this->placeHolder_02); ?>
+        <select name="property[1][text]" id="selectField02">
+           <?php echo $fieldTwoOptions; ?>
+        </select></label>
+        <button type="submit"><?php echo $translate('Search'); ?></button> 
+    </form>
+</div>
